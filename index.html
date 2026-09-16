@@ -583,7 +583,23 @@ const PHONE_PDF =
 
 const PC_PDF =
     "https://pad-hanis.github.io/digital-book/ppt/PC/pc.pdf";
-    
+/* =========================================================
+   MUSIC
+   ========================================================= */
+
+const MUSIC_BASE =
+    "https://pad-hanis.github.io/digital-book/ppt/Music/";
+
+const MUSIC_FILES = [
+    "gal_1_2.mp3",
+    "gal_3.mp3",
+    "gal_4_10.mp3"
+];
+
+const musicCache = {};
+let currentMusicFile = null;
+let musicStartedByUser = false;
+
 
 /* =========================================================
    PDF.JS
@@ -646,6 +662,169 @@ let currentOrientation = null;
 let rendering = false;
 
 let renderAgain = false;
+
+/* =========================================================
+   MUSIC FUNCTIONS
+   ========================================================= */
+
+function getMusicRange(fileName) {
+
+    const name =
+        fileName.replace(".mp3", "");
+
+    const parts =
+        name.split("_");
+
+    if (parts.length === 2) {
+
+        return {
+            file: fileName,
+            start: Number(parts[1]),
+            end: Number(parts[1])
+        };
+
+    }
+
+    if (parts.length === 3) {
+
+        return {
+            file: fileName,
+            start: Number(parts[1]),
+            end: Number(parts[2])
+        };
+
+    }
+
+    return null;
+}
+
+
+function getMusicForPage(pageNumber) {
+
+    for (const fileName of MUSIC_FILES) {
+
+        const range =
+            getMusicRange(fileName);
+
+        if (!range) {
+            continue;
+        }
+
+        if (
+            pageNumber >= range.start &&
+            pageNumber <= range.end
+        ) {
+            return fileName;
+        }
+    }
+
+    return null;
+}
+
+
+function preloadMusic() {
+
+    MUSIC_FILES.forEach(function(fileName) {
+
+        const audio =
+            new Audio();
+
+        audio.src =
+            MUSIC_BASE + fileName;
+
+        audio.preload =
+            "auto";
+
+        audio.volume =
+            0.85;
+
+        musicCache[fileName] =
+            audio;
+
+        audio.load();
+
+    });
+
+}
+
+
+async function playMusicForPage(pageNumber) {
+
+    const musicFile =
+        getMusicForPage(pageNumber);
+
+    if (!musicFile) {
+
+        if (currentMusicFile) {
+
+            const oldAudio =
+                musicCache[currentMusicFile];
+
+            if (oldAudio) {
+                oldAudio.pause();
+                oldAudio.currentTime = 0;
+            }
+
+            currentMusicFile = null;
+        }
+
+        return;
+    }
+
+    const audio =
+        musicCache[musicFile];
+
+    if (!audio) {
+        return;
+    }
+
+    if (
+        currentMusicFile === musicFile &&
+        !audio.paused
+    ) {
+        return;
+    }
+
+    if (
+        currentMusicFile &&
+        currentMusicFile !== musicFile
+    ) {
+
+        const oldAudio =
+            musicCache[currentMusicFile];
+
+        if (oldAudio) {
+            oldAudio.pause();
+            oldAudio.currentTime = 0;
+        }
+    }
+
+    audio.volume =
+        0.85;
+
+    audio.loop =
+        true;
+
+    try {
+
+        await audio.play();
+
+        currentMusicFile =
+            musicFile;
+
+        musicStartedByUser =
+            true;
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Music autoplay waiting for user interaction."
+        );
+
+    }
+}
 
 
 /* =========================================================
@@ -1578,6 +1757,10 @@ async function showPage(
     progress.value =
         currentPage;
 
+    playMusicForPage(
+    currentPage
+);
+
 
     loading.style.display =
         "flex";
@@ -2007,6 +2190,26 @@ updateViewportSize();
 
 currentOrientation =
     getOrientation();
+
+preloadMusic();
+
+document.addEventListener(
+    "pointerdown",
+    function() {
+
+        if (!musicStartedByUser) {
+
+            playMusicForPage(
+                currentPage
+            );
+
+        }
+
+    },
+    {
+        once: false
+    }
+);
 
 loadPDF(1);
 
