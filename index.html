@@ -1786,201 +1786,64 @@ content.addEventListener(
     }
 );
 
-
 /* =========================================================
-   TOUCH END
+   PDF PAGE INFO
    ========================================================= */
 
-content.addEventListener(
-    "touchend",
-    function(event) {
-
-        /*
-           اگر Pinch تمام شد،
-           اجازه Swipe نده.
-        */
-
-        if (isPinching) {
-
-            if (
-                event.touches.length === 0
-            ) {
-                isPinching = false;
-            }
-
-            return;
-        }
-
-
-        /*
-           اگر Zoom شده،
-           یک انگشت فقط برای Pan است.
-           بنابراین Swipe صفحه نداریم.
-        */
-
-        if (zoomLevel > 1) {
-            return;
-        }
-
-
-        /*
-           اگر حرکت قبلاً انجام شده،
-           Swipe معمولی محسوب نمی‌شود.
-        */
-
-        if (touchMoved) {
-            return;
-        }
-
-
-        if (
-            !event.changedTouches.length
-        ) {
-            return;
-        }
-
-
-        const touchEndX =
-            event.changedTouches[0].clientX;
-
-        const difference =
-            touchEndX -
-            touchStartX;
-
-
-        /*
-           حرکت خیلی کوچک
-        */
-
-        if (
-            Math.abs(difference) < 55
-        ) {
-            return;
-        }
-
-
-        /*
-           Swipe راست:
-           صفحه بعد
-        */
-
-        if (difference > 0) {
-
-            showPage(
-                currentPage + 1
-            );
-
-        }
-
-
-        /*
-           Swipe چپ:
-           صفحه قبل
-        */
-
-        else {
-
-            showPage(
-                currentPage - 1
-            );
-
-        }
-
-    },
-    {
-        passive: true
-    }
-);
-
-
-/* =========================================================
-   LOAD PDF
-   ========================================================= */
-
-async function loadPDF(
-    preservePage = 1
+async function getPDFPageInfo(
+    pdfList,
+    pdfBase
 ) {
 
-    const orientation =
-        getOrientation();
+    const pdfInfo = [];
 
-    currentOrientation =
-        orientation;
+    let total = 0;
 
-    const pdfList =
-        orientation === "portrait"
-            ? PHONE_PDFS
-            : PC_PDFS;
+    for (
+        let i = 0;
+        i < pdfList.length;
+        i++
+    ) {
 
-    const pdfBase =
-        orientation === "portrait"
-            ? PHONE_PDF_BASE
-            : PC_PDF_BASE;
+        const pdfURL =
+            pdfBase + pdfList[i];
 
-    try {
+        const pdf =
+            await pdfjsLib
+                .getDocument({
+                    url: pdfURL,
+                    disableFontFace: true
+                })
+                .promise;
 
-        loading.style.display =
-            "flex";
+        const startPage =
+            total + 1;
 
-        loading.textContent =
-            "در حال آماده‌سازی PDF...";
+        const endPage =
+            total + pdf.numPages;
 
-        if (!pdfList.length) {
-            throw new Error(
-                "No PDF files found"
-            );
-        }
+        pdfInfo.push({
+            file: pdfList[i],
+            startPage: startPage,
+            endPage: endPage,
+            numPages: pdf.numPages
+        });
 
-        const info =
-            await getPDFPageInfo(
-                pdfList,
-                pdfBase
-            );
+        total =
+            endPage;
 
-        pdfPageInfo =
-            info.files;
-
-        totalPages =
-            info.totalPages;
-
-        total.textContent =
-            totalPages;
-
-        progress.min = 1;
-
-        progress.max =
-            totalPages;
-
-        currentPDFIndex = -1;
-
-        if (pdfDocument) {
-            await pdfDocument.destroy();
-            pdfDocument = null;
-        }
-
-        await showPage(
-            preservePage
-        );
-
+        await pdf.destroy();
     }
 
-    catch (error) {
-
-        loading.style.display =
-            "flex";
-
-        loading.textContent =
-            "خطا در بارگذاری PDF";
-
-        console.error(error);
-
-    }
-
+    return {
+        files: pdfInfo,
+        totalPages: total
+    };
 }
 
 
 /* =========================================================
-   SHOW PAGE
+   LOAD PDF
    ========================================================= */
 
 async function showPage(
