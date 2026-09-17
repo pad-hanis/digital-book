@@ -686,27 +686,32 @@ async function loadPDFFiles(baseURL, baseName) {
     }
 }
 
-PHONE_PDFS =
-    await loadPDFFiles(
-        PHONE_PDF_BASE,
-        "Phone"
+async function initializePDFFiles() {
+
+    PHONE_PDFS =
+        await loadPDFFiles(
+            PHONE_PDF_BASE,
+            "Phone"
+        );
+
+    PC_PDFS =
+        await loadPDFFiles(
+            PC_PDF_BASE,
+            "PC"
+        );
+
+    console.log(
+        "Phone PDFs:",
+        PHONE_PDFS
     );
 
-PC_PDFS =
-    await loadPDFFiles(
-        PC_PDF_BASE,
-        "PC"
+    console.log(
+        "PC PDFs:",
+        PC_PDFS
     );
 
-console.log(
-    "Phone PDFs:",
-    PHONE_PDFS
-);
-
-console.log(
-    "PC PDFs:",
-    PC_PDFS
-);
+    loadPDF(1);
+}
 /* =========================================================
    MUSIC
    ========================================================= */
@@ -2449,7 +2454,7 @@ document.addEventListener(
     }
 );
 
-loadPDF(1);
+initializePDFFiles();
 
 </script>
 
