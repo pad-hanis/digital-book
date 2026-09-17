@@ -688,18 +688,24 @@ async function loadPDFFiles(baseURL, baseName) {
 
 async function initializePDFFiles() {
 
-    PHONE_PDFS =
-        await loadPDFFiles(
+    const results =
+    await Promise.all([
+        loadPDFFiles(
             PHONE_PDF_BASE,
             "Phone"
-        );
-
-    PC_PDFS =
-        await loadPDFFiles(
+        ),
+        loadPDFFiles(
             PC_PDF_BASE,
             "PC"
-        );
+        )
+    ]);
 
+PHONE_PDFS =
+    results[0];
+
+PC_PDFS =
+    results[1];
+	
     console.log(
         "Phone PDFs:",
         PHONE_PDFS
@@ -1836,13 +1842,7 @@ async function getPDFPageInfo(
         total =
             endPage;
 
-        if (i !== 0) {
-    await pdf.destroy();
-}
-else {
-    pdfDocument = pdf;
-    currentPDFIndex = 0;
-}
+        await pdf.destroy();
     }
 
     return {
