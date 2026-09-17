@@ -1836,7 +1836,13 @@ async function getPDFPageInfo(
         total =
             endPage;
 
-        await pdf.destroy();
+        if (i !== 0) {
+    await pdf.destroy();
+}
+else {
+    pdfDocument = pdf;
+    currentPDFIndex = 0;
+}
     }
 
     return {
