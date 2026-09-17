@@ -562,6 +562,16 @@ body {
             id="muteButton" 
             title="صدا">🔊</button>
 
+            <input
+            type="range"
+            id="volumeControl"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.85"
+            title="ولوم صدا"
+>
+
         <!-- Zoom -->
         <button
             class="control-button"
@@ -907,6 +917,23 @@ muteButton.addEventListener(
     }
 );
 
+const volumeControl =
+    document.getElementById("volumeControl");
+
+volumeControl.addEventListener(
+    "input",
+    function() {
+        const volume =
+            Number(volumeControl.value);
+
+        Object.values(musicCache).forEach(
+            function(audio) {
+                audio.volume =
+                    volume;
+            }
+        );
+    }
+);
 
 /* =========================================================
    ZOOM STATE
