@@ -825,6 +825,10 @@ let rendering = false;
 
 let renderAgain = false;
 
+let pdfPageInfo = [];
+
+let currentPDFIndex = -1;
+
 /* =========================================================
    MUSIC FUNCTIONS
    ========================================================= */
@@ -1919,7 +1923,7 @@ async function loadPDF(
             "flex";
 
         loading.textContent =
-            "در حال بارگذاری PDF...";
+            "در حال آماده‌سازی PDF...";
 
         if (!pdfList.length) {
             throw new Error(
@@ -1927,19 +1931,17 @@ async function loadPDF(
             );
         }
 
-        const firstPDFURL =
-            pdfBase + pdfList[0];
+        const info =
+            await getPDFPageInfo(
+                pdfList,
+                pdfBase
+            );
 
-        pdfDocument =
-            await pdfjsLib
-                .getDocument({
-                    url: firstPDFURL,
-                    disableFontFace: true
-                })
-                .promise;
+        pdfPageInfo =
+            info.files;
 
         totalPages =
-            pdfDocument.numPages;
+            info.totalPages;
 
         total.textContent =
             totalPages;
@@ -1949,17 +1951,15 @@ async function loadPDF(
         progress.max =
             totalPages;
 
-        const pageToShow =
-            Math.min(
-                Math.max(
-                    1,
-                    preservePage
-                ),
-                totalPages
-            );
+        currentPDFIndex = -1;
+
+        if (pdfDocument) {
+            await pdfDocument.destroy();
+            pdfDocument = null;
+        }
 
         await showPage(
-            pageToShow
+            preservePage
         );
 
     }
@@ -1977,6 +1977,8 @@ async function loadPDF(
     }
 
 }
+
+
 /* =========================================================
    SHOW PAGE
    ========================================================= */
@@ -1985,77 +1987,152 @@ async function showPage(
     pageNumber
 ) {
 
-    if (!pdfDocument) {
+    if (!pdfPageInfo.length) {
         return;
     }
-
 
     if (pageNumber < 1) {
         pageNumber = 1;
     }
 
-
     if (
         pageNumber >
         totalPages
     ) {
-
         pageNumber =
             totalPages;
     }
 
-
     currentPage =
         pageNumber;
 
-
     current.textContent =
         currentPage;
-
 
     progress.value =
         currentPage;
 
     playMusicForPage(
-    currentPage
-);
-
+        currentPage
+    );
 
     loading.style.display =
         "flex";
-
 
     loading.textContent =
         "در حال نمایش صفحه " +
         currentPage +
         "...";
 
-
-    /*
-       هر بار صفحه عوض می‌شود،
-       زوم قبلی از بین می‌رود.
-       این باعث می‌شود صفحه جدید
-       دقیقاً مثل حالت تأییدشده قبلی
-       از ابتدا داخل قاب قرار بگیرد.
-    */
-
     resetZoom();
 
-
     try {
+
+        /*
+           پیدا کردن PDF مربوط به
+           شماره صفحه کلی
+        */
+
+        let targetPDFIndex = -1;
+
+        for (
+            let i = 0;
+            i < pdfPageInfo.length;
+            i++
+        ) {
+
+            if (
+                currentPage >=
+                    pdfPageInfo[i].startPage &&
+                currentPage <=
+                    pdfPageInfo[i].endPage
+            ) {
+
+                targetPDFIndex =
+                    i;
+
+                break;
+            }
+        }
+
+        if (
+            targetPDFIndex === -1
+        ) {
+            throw new Error(
+                "PDF for page not found"
+            );
+        }
+
+        const targetPDF =
+            pdfPageInfo[
+                targetPDFIndex
+            ];
+
+        /*
+           شماره صفحه داخل PDF
+        */
+
+        const localPage =
+            currentPage -
+            targetPDF.startPage +
+            1;
+
+        /*
+           اگر PDF فعلی همان PDF موردنظر نیست،
+           PDF جدید را باز می‌کنیم.
+        */
+
+        if (
+            currentPDFIndex !==
+            targetPDFIndex
+        ) {
+
+            if (pdfDocument) {
+
+                await pdfDocument.destroy();
+
+                pdfDocument =
+                    null;
+            }
+
+            const orientation =
+                getOrientation();
+
+            const pdfBase =
+                orientation === "portrait"
+                    ? PHONE_PDF_BASE
+                    : PC_PDF_BASE;
+
+            const pdfURL =
+                pdfBase +
+                targetPDF.file;
+
+            pdfDocument =
+                await pdfjsLib
+                    .getDocument({
+                        url: pdfURL,
+                        disableFontFace: true
+                    })
+                    .promise;
+
+            currentPDFIndex =
+                targetPDFIndex;
+        }
+
+        /*
+           دریافت صفحه واقعی داخل PDF
+        */
 
         const page =
             await pdfDocument
                 .getPage(
-                    currentPage
+                    localPage
                 );
-
 
         const baseViewport =
             page.getViewport({
                 scale: 1
             });
-
 
         const availableWidth =
             content.clientWidth - 2;
@@ -2063,16 +2140,13 @@ async function showPage(
         const availableHeight =
             content.clientHeight - 2;
 
-
         const scaleX =
             availableWidth /
             baseViewport.width;
 
-
         const scaleY =
             availableHeight /
             baseViewport.height;
-
 
         const scale =
             Math.min(
@@ -2080,17 +2154,14 @@ async function showPage(
                 scaleY
             );
 
-
         const viewport =
             page.getViewport({
                 scale: scale
             });
 
-
         const deviceScale =
             window.devicePixelRatio ||
             1;
-
 
         canvas.width =
             Math.floor(
@@ -2098,21 +2169,19 @@ async function showPage(
                 deviceScale
             );
 
-
         canvas.height =
             Math.floor(
                 viewport.height *
                 deviceScale
             );
 
-
         canvas.style.width =
-            viewport.width + "px";
-
+            viewport.width +
+            "px";
 
         canvas.style.height =
-            viewport.height + "px";
-
+            viewport.height +
+            "px";
 
         ctx.setTransform(
             deviceScale,
@@ -2123,26 +2192,17 @@ async function showPage(
             0
         );
 
-
         await page.render({
             canvasContext: ctx,
             viewport: viewport
         }).promise;
 
-
         loading.style.display =
             "none";
-
-
-        /*
-           بعد از Render دوباره
-           زوم را اعمال می‌کنیم.
-        */
 
         applyZoom();
 
     }
-
     catch (error) {
 
         loading.style.display =
