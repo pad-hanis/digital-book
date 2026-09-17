@@ -590,16 +590,48 @@ const PC_PDF =
 const MUSIC_BASE =
     "https://pad-hanis.github.io/digital-book/ppt/Music/";
 
-const MUSIC_FILES = [
-    "gal_1_2.mp3",
-    "gal_3.mp3",
-    "gal_4_10.mp3"
-];
-
+let MUSIC_FILES = [];
 const musicCache = {};
 let currentMusicFile = null;
 let musicStartedByUser = false;
 
+async function loadMusicFiles() {
+    try {
+        const response = await fetch(
+            "https://api.github.com/repos/pad-hanis/digital-book/contents/ppt/Music"
+        );
+
+        if (!response.ok) {
+            throw new Error("Cannot read Music folder");
+        }
+
+        const files = await response.json();
+
+        MUSIC_FILES = files
+            .filter(function(file) {
+                return (
+                    file.type === "file" &&
+                    file.name.toLowerCase().endsWith(".mp3")
+                );
+            })
+            .map(function(file) {
+                return file.name;
+            });
+
+        console.log(
+            "Music files:",
+            MUSIC_FILES
+        );
+
+        preloadMusic();
+    }
+    catch (error) {
+        console.error(
+            "Music folder error:",
+            error
+        );
+    }
+}
 
 /* =========================================================
    PDF.JS
@@ -667,37 +699,55 @@ let renderAgain = false;
    MUSIC FUNCTIONS
    ========================================================= */
 
-function getMusicRange(fileName) {
 
+   function getMusicRange(fileName) {
     const name =
-        fileName.replace(".mp3", "");
+        fileName.replace(/\.mp3$/i, "");
 
     const parts =
         name.split("_");
 
-    if (parts.length === 2) {
+    let range =
+        parts[parts.length - 1];
 
-        return {
-            file: fileName,
-            start: Number(parts[1]),
-            end: Number(parts[1])
-        };
-
+    if (
+        range.toUpperCase() === "LOOP" &&
+        parts.length >= 2
+    ) {
+        range =
+            parts[parts.length - 2];
     }
 
-    if (parts.length === 3) {
+    if (/^\d+$/.test(range)) {
+        const page =
+            Number(range);
 
         return {
             file: fileName,
-            start: Number(parts[1]),
-            end: Number(parts[2])
+            start: page,
+            end: page
         };
+    }
 
+    const rangeParts =
+        range.split("-");
+
+    if (
+        rangeParts.length === 2 &&
+        /^\d+$/.test(rangeParts[0]) &&
+        /^\d+$/.test(rangeParts[1])
+    ) {
+        return {
+            file: fileName,
+            start: Number(rangeParts[0]),
+            end: Number(rangeParts[1])
+        };
     }
 
     return null;
 }
 
+  
 
 function getMusicForPage(pageNumber) {
 
@@ -803,7 +853,9 @@ async function playMusicForPage(pageNumber) {
         0.85;
 
     audio.loop =
-        true;
+    musicFile
+        .toUpperCase()
+        .includes("_LOOP");
 
     try {
 
@@ -2191,7 +2243,7 @@ updateViewportSize();
 currentOrientation =
     getOrientation();
 
-preloadMusic();
+loadMusicFiles();
 
 document.addEventListener(
     "pointerdown",
