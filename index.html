@@ -1189,12 +1189,22 @@ function getOrientation() {
    ========================================================= */
 
 function getPDFURL() {
+    const pdfList =
+        getOrientation() === "portrait"
+            ? PHONE_PDFS
+            : PC_PDFS;
 
-    return getOrientation() === "portrait"
-        ? PHONE_PDF
-        : PC_PDF;
+    const pdfBase =
+        getOrientation() === "portrait"
+            ? PHONE_PDF_BASE
+            : PC_PDF_BASE;
+
+    if (!pdfList.length) {
+        return null;
+    }
+
+    return pdfBase + pdfList[0];
 }
-
 
 /* =========================================================
    CLAMP PAN
