@@ -1817,6 +1817,10 @@ async function getPDFPageInfo(
 
         const pdfURL =
             pdfBase + pdfList[i];
+		
+		console.time(
+    "OPEN PDF " + pdfList[i]
+);
 
         const pdf =
             await pdfjsLib
@@ -1825,6 +1829,10 @@ async function getPDFPageInfo(
                     disableFontFace: true
                 })
                 .promise;
+
+		console.timeEnd(
+    "OPEN PDF " + pdfList[i]
+);
 
         const startPage =
             total + 1;
