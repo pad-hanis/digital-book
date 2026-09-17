@@ -493,7 +493,7 @@ body {
             </div>
 
             <div id="loading">
-                در حال بارگذاری PDF...
+                در حال بارگذاری ...
             </div>
 
         </div>
@@ -556,7 +556,11 @@ body {
         >
             ☀
         </button>
-
+        
+        <button 
+            class="control-button"
+            id="muteButton" 
+            title="صدا">🔊</button>
 
         <!-- Zoom -->
         <button
@@ -594,6 +598,7 @@ let MUSIC_FILES = [];
 const musicCache = {};
 let currentMusicFile = null;
 let musicStartedByUser = false;
+let musicMuted = false;
 
 async function loadMusicFiles() {
     try {
@@ -877,6 +882,30 @@ async function playMusicForPage(pageNumber) {
 
     }
 }
+
+const muteButton =
+    document.getElementById("muteButton");
+
+muteButton.addEventListener(
+    "click",
+    function() {
+        musicMuted =
+            !musicMuted;
+
+        Object.values(musicCache).forEach(
+            function(audio) {
+                audio.muted =
+                    musicMuted;
+            }
+        );
+
+        muteButton.textContent =
+            musicMuted ? "🔇" : "🔊";
+
+        muteButton.title =
+            musicMuted ? "فعال کردن صدا" : "بی‌صدا کردن";
+    }
+);
 
 
 /* =========================================================
