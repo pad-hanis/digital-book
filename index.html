@@ -1903,10 +1903,15 @@ async function loadPDF(
     currentOrientation =
         orientation;
 
+    const pdfList =
+        orientation === "portrait"
+            ? PHONE_PDFS
+            : PC_PDFS;
 
-    const pdfURL =
-        getPDFURL();
-
+    const pdfBase =
+        orientation === "portrait"
+            ? PHONE_PDF_BASE
+            : PC_PDF_BASE;
 
     try {
 
@@ -1916,29 +1921,33 @@ async function loadPDF(
         loading.textContent =
             "در حال بارگذاری PDF...";
 
+        if (!pdfList.length) {
+            throw new Error(
+                "No PDF files found"
+            );
+        }
+
+        const firstPDFURL =
+            pdfBase + pdfList[0];
 
         pdfDocument =
-    await pdfjsLib
-        .getDocument({
-            url: pdfURL,
-            disableFontFace: true
-        })
-        .promise;
-
+            await pdfjsLib
+                .getDocument({
+                    url: firstPDFURL,
+                    disableFontFace: true
+                })
+                .promise;
 
         totalPages =
             pdfDocument.numPages;
 
-
         total.textContent =
             totalPages;
-
 
         progress.min = 1;
 
         progress.max =
             totalPages;
-
 
         const pageToShow =
             Math.min(
@@ -1948,7 +1957,6 @@ async function loadPDF(
                 ),
                 totalPages
             );
-
 
         await showPage(
             pageToShow
@@ -1969,8 +1977,6 @@ async function loadPDF(
     }
 
 }
-
-
 /* =========================================================
    SHOW PAGE
    ========================================================= */
