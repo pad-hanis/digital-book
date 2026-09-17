@@ -1884,11 +1884,14 @@ async function loadPDF(
             );
         }
 
+        console.time("PDF PAGE INFO");
+
         const info =
             await getPDFPageInfo(
                 pdfList,
                 pdfBase
             );
+		console.timeEnd("PDF PAGE INFO");
 
         pdfPageInfo =
             info.files;
