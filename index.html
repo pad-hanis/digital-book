@@ -229,6 +229,12 @@ body {
 
     z-index: 20;
 }
+#volumeControl {
+    width: 70px;
+    height: 4px;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
 
 /* =========================================================
    CONTROL BUTTONS
@@ -430,7 +436,9 @@ body {
 
         font-size: 15px;
     }
-
+    #volumeControl {
+    width: 50px;
+}
     .page-counter {
         min-width: 55px;
         font-size: 12px;
@@ -592,11 +600,113 @@ body {
    PDF FILES
    ========================================================= */
 
-const PHONE_PDF =
-    "https://pad-hanis.github.io/digital-book/ppt/Phone/phone.pdf";
+const PHONE_PDF_BASE =
+    "https://pad-hanis.github.io/digital-book/ppt/Phone/";
 
-const PC_PDF =
-    "https://pad-hanis.github.io/digital-book/ppt/PC/pc.pdf";
+const PC_PDF_BASE =
+    "https://pad-hanis.github.io/digital-book/ppt/PC/";
+
+let PHONE_PDFS = [];
+let PC_PDFS = [];
+
+async function loadPDFFiles(baseURL, baseName) {
+    try {
+        const folderURL =
+            baseURL.replace(
+                "https://pad-hanis.github.io/digital-book/",
+                "https://api.github.com/repos/pad-hanis/digital-book/contents/"
+            );
+
+        const response =
+            await fetch(folderURL);
+
+        if (!response.ok) {
+            throw new Error(
+                "Cannot read PDF folder"
+            );
+        }
+
+        const files =
+            await response.json();
+
+        return files
+            .filter(function(file) {
+                return (
+                    file.type === "file" &&
+                    file.name
+                        .toLowerCase()
+                        .endsWith(".pdf") &&
+                    (
+                        file.name
+                            .toLowerCase()
+                            .startsWith(
+                                baseName.toLowerCase()
+                            )
+                    )
+                );
+            })
+            .map(function(file) {
+                return file.name;
+            })
+            .sort(function(a, b) {
+
+                function getNumber(name) {
+                    const match =
+                        name.match(
+                            new RegExp(
+                                "^" +
+                                baseName +
+                                "(\\d*)\\.pdf$",
+                                "i"
+                            )
+                        );
+
+                    if (!match) {
+                        return Infinity;
+                    }
+
+                    return match[1] === ""
+                        ? 0
+                        : Number(match[1]);
+                }
+
+                return (
+                    getNumber(a) -
+                    getNumber(b)
+                );
+            });
+    }
+    catch (error) {
+        console.error(
+            "PDF folder error:",
+            error
+        );
+
+        return [];
+    }
+}
+
+PHONE_PDFS =
+    await loadPDFFiles(
+        PHONE_PDF_BASE,
+        "Phone"
+    );
+
+PC_PDFS =
+    await loadPDFFiles(
+        PC_PDF_BASE,
+        "PC"
+    );
+
+console.log(
+    "Phone PDFs:",
+    PHONE_PDFS
+);
+
+console.log(
+    "PC PDFs:",
+    PC_PDFS
+);
 /* =========================================================
    MUSIC
    ========================================================= */
@@ -865,7 +975,7 @@ async function playMusicForPage(pageNumber) {
     }
 
     audio.volume =
-        0.85;
+    Number(volumeControl.value);
 
     audio.loop =
     musicFile
@@ -932,9 +1042,29 @@ volumeControl.addEventListener(
                     volume;
             }
         );
+
+        if (
+            volume > 0 &&
+            musicMuted
+        ) {
+            musicMuted =
+                false;
+
+            Object.values(musicCache).forEach(
+                function(audio) {
+                    audio.muted =
+                        false;
+                }
+            );
+
+            muteButton.textContent =
+                "🔊";
+
+            muteButton.title =
+                "بی‌صدا کردن";
+        }
     }
 );
-
 /* =========================================================
    ZOOM STATE
    ========================================================= */
