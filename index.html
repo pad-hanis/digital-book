@@ -688,24 +688,18 @@ async function loadPDFFiles(baseURL, baseName) {
 
 async function initializePDFFiles() {
 
-    const results =
-    await Promise.all([
-        loadPDFFiles(
+    PHONE_PDFS =
+        await loadPDFFiles(
             PHONE_PDF_BASE,
             "Phone"
-        ),
-        loadPDFFiles(
+        );
+
+    PC_PDFS =
+        await loadPDFFiles(
             PC_PDF_BASE,
             "PC"
-        )
-    ]);
+        );
 
-PHONE_PDFS =
-    results[0];
-
-PC_PDFS =
-    results[1];
-	
     console.log(
         "Phone PDFs:",
         PHONE_PDFS
@@ -836,16 +830,6 @@ let renderToken = 0;
 let pdfPageInfo = [];
 
 let currentPDFIndex = -1;
-
-const pageCache = new Map();
-
-let phonePDFPageInfo = [];
-
-let phoneTotalPages = 0;
-
-let pcPDFPageInfo = [];
-
-let pcTotalPages = 0;
 
 /* =========================================================
    MUSIC FUNCTIONS
@@ -1825,10 +1809,6 @@ async function getPDFPageInfo(
 
         const pdfURL =
             pdfBase + pdfList[i];
-		
-		console.time(
-    "OPEN PDF " + pdfList[i]
-);
 
         const pdf =
             await pdfjsLib
@@ -1837,10 +1817,6 @@ async function getPDFPageInfo(
                     disableFontFace: true
                 })
                 .promise;
-
-		console.timeEnd(
-    "OPEN PDF " + pdfList[i]
-);
 
         const startPage =
             total + 1;
@@ -1872,84 +1848,88 @@ async function getPDFPageInfo(
    LOAD PDF
    ========================================================= */
 
-async function loadPDF(preservePage = 1) {
+async function loadPDF(
+    preservePage = 1
+) {
+
+    const orientation =
+        getOrientation();
+
+    currentOrientation =
+        orientation;
+
+    const pdfList =
+        orientation === "portrait"
+            ? PHONE_PDFS
+            : PC_PDFS;
+
+    const pdfBase =
+        orientation === "portrait"
+            ? PHONE_PDF_BASE
+            : PC_PDF_BASE;
+
     try {
-        const orientation = getOrientation();
-        currentOrientation = orientation;
 
-        const pdfList =
-            orientation === "portrait"
-                ? PHONE_PDFS
-                : PC_PDFS;
+        loading.style.display =
+            "flex";
 
-        const pdfBase =
-            orientation === "portrait"
-                ? PHONE_PDF_BASE
-                : PC_PDF_BASE;
+        loading.textContent =
+            "در حال آماده‌سازی PDF...";
 
-        if (!pdfList || pdfList.length === 0) {
-            throw new Error("هیچ فایل PDF پیدا نشد");
+        if (!pdfList.length) {
+            throw new Error(
+                "No PDF files found"
+            );
         }
 
-        // استفاده از اطلاعات صفحات ذخیره‌شده
-        if (orientation === "portrait") {
-            pdfPageInfo = phonePDFPageInfo;
-            totalPages = phoneTotalPages;
-        } else {
-            pdfPageInfo = pcPDFPageInfo;
-            totalPages = pcTotalPages;
-        }
+        const info =
+            await getPDFPageInfo(
+                pdfList,
+                pdfBase
+            );
 
-        // اگر اطلاعات صفحات هنوز محاسبه نشده، فقط یک بار محاسبه کن
-        if (!pdfPageInfo || pdfPageInfo.length === 0) {
-            showLoading("در حال آماده‌سازی PDF...");
+        pdfPageInfo =
+            info.files;
 
-            const info = await getPDFPageInfo(pdfList, pdfBase);
+        totalPages =
+            info.totalPages;
 
-            if (orientation === "portrait") {
-                phonePDFPageInfo = info.info;
-                phoneTotalPages = info.totalPages;
+        total.textContent =
+            totalPages;
 
-                pdfPageInfo = phonePDFPageInfo;
-                totalPages = phoneTotalPages;
-            } else {
-                pcPDFPageInfo = info.info;
-                pcTotalPages = info.totalPages;
+        progress.min = 1;
 
-                pdfPageInfo = pcPDFPageInfo;
-                totalPages = pcTotalPages;
-            }
-        }
-
-        currentPage = Math.max(
-            1,
-            Math.min(preservePage, totalPages)
-        );
-
-        updateProgress();
-
-        // PDF قبلی را ببند
-        if (pdfDocument) {
-            try {
-                await pdfDocument.destroy();
-            } catch (e) {
-                console.warn("خطا هنگام بستن PDF قبلی:", e);
-            }
-
-            pdfDocument = null;
-        }
+        progress.max =
+            totalPages;
 
         currentPDFIndex = -1;
 
-        await showPage(currentPage);
+        if (pdfDocument) {
 
-    } catch (error) {
-        console.error("خطا در loadPDF:", error);
+            await pdfDocument.destroy();
 
-        hideLoading();
+            pdfDocument =
+                null;
+        }
 
-        loadingText.textContent = "خطا در بارگذاری PDF";
+        await showPage(
+            preservePage
+        );
+
     }
+
+    catch (error) {
+
+        loading.style.display =
+            "flex";
+
+        loading.textContent =
+            "خطا در بارگذاری PDF";
+
+        console.error(error);
+
+    }
+
 }
 
 
@@ -1986,6 +1966,13 @@ async function showPage(
         currentPage
     );
 
+    loading.style.display =
+        "flex";
+
+    loading.textContent =
+        "در حال نمایش صفحه " +
+        currentPage +
+        "...";
 
     resetZoom();
 
